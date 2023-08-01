@@ -1,0 +1,16 @@
+[package]
+name = "drawbird"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = { version = "0.6.19", features = ["ws"] }
+futures = "0.3.28"
+serde = { version = "1.0.180", features = ["derive"] }
+serde_json = "1.0.104"
+tokio = { version = "1.29.1", features = ["full"] }
+tower = { version = "0.4.13", features = ["util"] }
+tower-http = { version = "0.4.3", features = ["fs"] }
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
