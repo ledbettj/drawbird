@@ -51,8 +51,8 @@ impl App {
     let mut rx = None;
     let mut room_name = None;
 
-    while let Some(Ok(Message::Text(text))) = receiver.next().await {
-      let m = serde_json::from_str::<ClientEvent>(&text);
+    while let Some(Ok(Message::Binary(bin))) = receiver.next().await {
+      let m = rmp_serde::from_slice::<ClientEvent>(&bin);
       if let Ok(ClientEvent::Join { id }) = m {
         let p = state.lock().await.find_or_create(&id).subscribe();
         println!("joined {}", id);
@@ -74,8 +74,8 @@ impl App {
     let mut tx_task = tokio::spawn(async move {
       {
         let name_msg = ServerEvent::AssignedName { name: _name };
-        let payload = serde_json::to_string(&name_msg).unwrap();
-        if sender.send(Message::Text(payload)).await.is_err() {
+        let payload = rmp_serde::to_vec_named(&name_msg).unwrap();
+        if sender.send(Message::Binary(payload)).await.is_err() {
           return;
         }
       }
@@ -84,8 +84,8 @@ impl App {
       {
         if let Some(history) = _s.lock().await.get_history(&_room) {
           for h in history {
-            let payload = serde_json::to_string(&h).unwrap();
-            if sender.send(Message::Text(payload)).await.is_err() {
+            let payload = rmp_serde::to_vec_named(&h).unwrap();
+            if sender.send(Message::Binary(payload)).await.is_err() {
               return;
             }
           }
@@ -95,7 +95,7 @@ impl App {
       while let Ok(msg) = rx.recv().await {
         println!("sending {:?}", msg);
         if sender
-          .send(Message::Text(serde_json::to_string(&msg).unwrap()))
+          .send(Message::Binary(rmp_serde::to_vec_named(&msg).unwrap()))
           .await
           .is_err()
         {
@@ -105,8 +105,8 @@ impl App {
     });
 
     let mut rx_task = tokio::spawn(async move {
-      while let Some(Ok(Message::Text(text))) = receiver.next().await {
-        if let Ok(event) = serde_json::from_str::<ClientEvent>(&text) {
+      while let Some(Ok(Message::Binary(blob))) = receiver.next().await {
+        if let Ok(event) = rmp_serde::from_slice(&blob) {
           println!("received {:?}", event);
 
           match event {
@@ -132,7 +132,7 @@ impl App {
             }
           };
         } else {
-          println!("failed to deserialize: {:?}", text);
+          println!("failed to deserialize: {:?}", blob);
         }
       }
     });

@@ -1,10 +1,11 @@
 import './App.css';
+import  { encode, decode } from '@msgpack/msgpack';
 import React, { useEffect, useState, useRef } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
-import { Heading, HeadingLevel } from 'baseui/heading';
+import { HeadingMedium, HeadingSmall } from 'baseui/typography';
 import { StatefulSlider } from 'baseui/slider';
-import { styled } from 'baseui';
-import {Select, Value} from 'baseui/select';
+import { styled, useStyletron } from 'baseui';
+import {Select} from 'baseui/select';
 import {expandBorderStyles} from 'baseui/styles';
 
 import useWebSocket,  {ReadyState} from 'react-use-websocket';
@@ -65,10 +66,13 @@ const Canvas = (props) => {
 
 const Room = () => {
   let { roomId } = useParams();
-  const addr = window.location.host; // localhost:3500
-  const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(`ws://${addr}/ws`, {
+  const addr = window.location.hostname == 'localhost' ?
+        'ws://localhost:3500/ws' :
+        `wss://${window.location.host}/ws`
+  ;
+  const { sendMessage, lastMessage, readyState } = useWebSocket(addr, {
     onOpen: () => {
-      sendJsonMessage({ event: 'join', id: roomId });
+      sendMessage(encode({ event: 'join', id: roomId }));
     }
   });
   const [roomState, setRoomState] = useState([]);
@@ -79,40 +83,44 @@ const Room = () => {
   const [previews, setPreviews] = useState({});
 
   const connectionStatus = {
-    [ReadyState.CONNECTING]: 'Connecting',
-    [ReadyState.OPEN]: 'Open',
-    [ReadyState.CLOSING]: 'Closing',
-    [ReadyState.CLOSED]: 'Closed',
-    [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
+    [ReadyState.CONNECTING]: 'connecting...',
+    [ReadyState.OPEN]: 'connected',
+    [ReadyState.CLOSING]: 'closing...',
+    [ReadyState.CLOSED]: 'disconnected',
+    [ReadyState.UNINSTANTIATED]: 'all fucked up',
   }[readyState];
 
   useEffect(() => {
-    if (!lastJsonMessage)
-      return;
+    const process = async () => {
+      if (!lastMessage)
+        return;
 
-    const m = lastJsonMessage;
-    console.log(m);
-    switch(m.event) {
-    case 'assignedName':
-      setUserName(m.name);
-      break;
-    case 'draw':
-      setRoomState((prevState, _) => prevState.concat([m]));
+      const m = decode(await lastMessage.data.arrayBuffer());
 
-      if (m.user != userName) {
-        setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }) );
+      switch(m.event) {
+      case 'assignedName':
+        setUserName(m.name);
+        break;
+      case 'draw':
+        setRoomState((prevState, _) => prevState.concat([m]));
+
+        if (m.user != userName) {
+          setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }) );
+        }
+        break;
+      case 'preview':
+        if (m.user != userName) {
+          setPreviews((prevState, _) => ({ ...prevState, [m.user]: m }) );
+        }
+        break;
+      default:
+        console.log(`unhandled event type ${m.event}`);
+        break;
       }
-      break;
-    case 'preview':
-      if (m.user != userName) {
-        setPreviews((prevState, _) => ({ ...prevState, [m.user]: m }) );
-      }
-      break;
-    default:
-      console.log(`unhandled event type ${m.event}`);
-      break;
-    }
-  }, [lastJsonMessage, setRoomState, setPreviews, setUserName]);
+    };
+
+    process().catch(console.error);
+  }, [lastMessage, setRoomState, setPreviews, setUserName]);
 
   const onMouseMove = (event) => {
     if (!isDrawing)
@@ -122,12 +130,12 @@ const Room = () => {
     setCurrentPath((prevState, _) => prevState.concat([p]));
     setPreviews((prevState, _) => ({ ...prevState, [userName]: {points: currentPath, style: currentStyle } }) );
 
-    sendJsonMessage({ event: 'preview', ...previews[userName]});
+    sendMessage(encode({ event: 'preview', ...previews[userName]}));
   };
 
   const onMouseUp = (_) => {
     if (currentPath.length) {
-      sendJsonMessage({ event: 'draw', points: currentPath, style: currentStyle });
+      sendMessage(encode({ event: 'draw', points: currentPath, style: currentStyle }));
       setRoomState((prevState, _) => prevState.concat([{points: currentPath, style: { ...currentStyle } }]));
       setCurrentPath([]);
 
@@ -166,16 +174,18 @@ const Room = () => {
     ctx.restore();
   };
 
+  const [css, theme] = useStyletron();
+
   return (
     <div className="container">
       <div className="sidebar">
-        <HeadingLevel>
-          <Heading>{roomId}</Heading>
-          <HeadingLevel>
-            <Heading>{userName}</Heading>
-          </HeadingLevel>
-        </HeadingLevel>
-        <div>
+        <div className={css({ background: '#fcfcfc', margin: 0 })}>
+          <div className="sidebar-inner">
+            <h2>{roomId} <small>({connectionStatus})</small></h2>
+            <h5>{userName} | </h5>
+          </div>
+        </div>
+        <div className="sidebar-inner">
           <StatefulSlider
             min={1}
             max={10}
