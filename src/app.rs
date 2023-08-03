@@ -29,7 +29,9 @@ impl App {
     let state = RoomSet::new();
     let app = Router::new()
       .route("/", index.clone())
-      .route("/room/:room", index)
+      .route("/room/:room", index.clone())
+      .route("/rooms/:room", index)
+      .route("/api/rooms", get(App::room_list))
       .route("/ws", get(App::ws_handler))
       .with_state(Arc::new(Mutex::new(state)))
       .fallback(get_service(ServeDir::new("./web")));
@@ -38,6 +40,13 @@ impl App {
       .serve(app.into_make_service())
       .await
       .expect("Failed to launch server!");
+  }
+
+  async fn room_list(State(state): State<AppState>) -> Vec<u8> {
+    let s = state.lock().await;
+    let rooms = s.rooms();
+    println!("listing rooms");
+    rmp_serde::to_vec(&rooms).unwrap()
   }
 
   async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
@@ -126,7 +135,11 @@ impl App {
                 style,
               })
               .unwrap();
-            }
+            },
+            ClientEvent::Erase => {
+              state.lock().await.clear_history(&room_name);
+              tx.send(ServerEvent::Erase { user: name.clone() }).unwrap();
+            },
             m => {
               println!("unhandled message: {:?}", m);
             }

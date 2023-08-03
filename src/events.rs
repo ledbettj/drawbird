@@ -20,6 +20,7 @@ pub enum ClientEvent {
   Join { id: String },
   Draw { points: Vec<Point>, style: Style },
   Preview { points: Vec<Point>, style: Style },
+  Erase,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -38,4 +39,7 @@ pub enum ServerEvent {
     points: Vec<Point>,
     style: Style,
   },
+  Erase {
+    user: String,
+  }
 }

@@ -9,6 +9,7 @@ import useWebSocket,  {ReadyState} from 'react-use-websocket';
 import RoomHeader from './RoomHeader';
 import { Card, CardBody} from '@chakra-ui/react';
 import ColorPicker from './ColorPicker';
+import WidthPicker from './WidthPicker';
 
 const Room = () => {
   let { roomId } = useParams();
@@ -58,6 +59,9 @@ const Room = () => {
         if (m.user != userName) {
           setPreviews((prevState, _) => ({ ...prevState, [m.user]: m }) );
         }
+        break;
+      case 'erase':
+        setRoomState([]);
         break;
       default:
         console.log(`unhandled event type ${m.event}`);
@@ -144,7 +148,7 @@ const Room = () => {
   };
 
   const erase = () => {
-
+    sendMessage(encode({ event: 'erase' }));
   };
 
   return (
@@ -157,32 +161,17 @@ const Room = () => {
         <Card w="100%" h="100%">
           <RoomHeader name={roomId} connectionStatus={connectionStatus} userName={userName} />
           <CardBody>
-            <Slider
-              defaultValue={2}
-              min={1}
-              max={10}
-              step={1}
+            <WidthPicker
+              mb="8"
               onChangeEnd={
                 (val) => { setCurrentStyle((prevState, _) => ({val, ...prevState, lineWidth: val})); }
               }
-            >
-              <SliderMark
-                value={currentStyle.lineWidth}
-                textAlign="center"
-                mt="-10"
-                ml="-5"
-                w="12"
-              >
-                {currentStyle.lineWidth}
-              </SliderMark>
-              <SliderTrack>
-                <SliderFilledTrack/>
-              </SliderTrack>
-              <SliderThumb/>
-            </Slider>
-            <ColorPicker onChangeEnd={
-              (val) => { console.log(val); setCurrentStyle((prevState, _) => ({val, ...prevState, color: val})); }
-            }
+            />
+            <ColorPicker
+              mb="8"
+              onChangeEnd={
+                (val) => { console.log(val); setCurrentStyle((prevState, _) => ({val, ...prevState, color: val})); }
+              }
             />
             <div >
               <Button leftIcon={<DeleteIcon />} onClick={erase}>Erase</Button>
