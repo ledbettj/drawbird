@@ -1,6 +1,7 @@
 import Canvas from './Canvas';
 
-import { Flex, Slider, SliderFilledTrack, SliderMark, SliderThumb, SliderTrack, Square } from '@chakra-ui/react';
+import { Flex, Button, Slider, SliderFilledTrack, SliderMark, SliderThumb, SliderTrack, Square } from '@chakra-ui/react';
+import { DeleteIcon } from '@chakra-ui/icons';
 import  { encode, decode } from '@msgpack/msgpack';
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -98,14 +99,37 @@ const Room = () => {
   };
 
   const drawEvent = (ctx, event, badge) => {
+    if (!event.points.length)
+      return;
+
     ctx.save();
     ctx.lineWidth = event.style.lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.strokeStyle = event.style.color;
     ctx.fillStyle = event.style.Color;
     ctx.beginPath();
-    event.points.forEach(({ x, y }) => {
-      ctx.lineTo(x, y);
-    });
+
+    ctx.moveTo(event.points[0].x, event.points[0].y);
+
+    let i;
+
+    if (event.points.length <= 3) {
+      event.points.forEach(({ x, y }) => {
+        ctx.lineTo(x, y);
+      });
+    } else {
+
+      for (i = 1; i < event.points.length - 2; ++i) {
+        let p = event.points;
+        let xc = (p[i].x + p[i + 1].x) / 2;
+        let yc = (p[i].y + p[i + 1].y) / 2;
+        ctx.quadraticCurveTo(p[i].x, p[i].y, xc, yc);
+      }
+
+      ctx.quadraticCurveTo(event.points[i].x, event.points[i].y, event.points[i + 1].x, event.points[i + 1].y);
+    }
+
     ctx.stroke();
 
     if (badge) {
@@ -117,6 +141,10 @@ const Room = () => {
 
     ctx.closePath();
     ctx.restore();
+  };
+
+  const erase = () => {
+
   };
 
   return (
@@ -156,6 +184,9 @@ const Room = () => {
               (val) => { console.log(val); setCurrentStyle((prevState, _) => ({val, ...prevState, color: val})); }
             }
             />
+            <div >
+              <Button leftIcon={<DeleteIcon />} onClick={erase}>Erase</Button>
+            </div>
           </CardBody>
         </Card>
       </Square>

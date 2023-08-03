@@ -83,7 +83,7 @@ const ColorPicker = ({ onChangeEnd }) => {
             <Input
               borderRadius={3}
               marginTop={3}
-              placeholder="red.100"
+              placeholder="#ff0000"
               size="sm"
               value={color}
               onChange={(e) => {
