@@ -86,6 +86,21 @@ const Room = () => {
 
   let lastMove = new Date();
 
+  const onTouchStart = (event) => {
+    onMouseDown(event.touches[0]);
+    event.preventDefault();
+  };
+
+  const onTouchEnd = (event) => {
+    onMouseUp({});
+    event.preventDefault();
+  };
+
+  const onTouchMove = (event) => {
+    onMouseMove(event.touches[0]);
+    event.preventDefault();
+  };
+
   const onMouseMove = (event) => {
 
     const p = { x: event.pageX - event.target.offsetLeft, y: event.pageY - event.target.offsetTop };
@@ -193,7 +208,7 @@ const Room = () => {
             <ColorPicker
               mb="8"
               onChangeEnd={
-                (val) => { console.log(val); setCurrentStyle((prevState, _) => ({val, ...prevState, color: val})); }
+                (val) => { setCurrentStyle((prevState, _) => ({val, ...prevState, color: val})); }
               }
             />
             <div >
@@ -230,6 +245,9 @@ const Room = () => {
           onMouseDown={onMouseDown}
           onMouseUp={onMouseUp}
           onMouseMove={onMouseMove}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onTouchMove={onTouchMove}
         />
     </Square>
     </Flex>
