@@ -78,9 +78,11 @@ const Room = () => {
 
     const p = { x: event.clientX - event.target.offsetLeft, y: event.clientY - event.target.offsetTop };
     setCurrentPath((prevState, _) => prevState.concat([p]));
-    setPreviews((prevState, _) => ({ ...prevState, [userName]: {points: currentPath, style: currentStyle } }) );
-
-    sendMessage(encode({ event: 'preview', ...previews[userName]}));
+    setPreviews((prevState, _) => {
+      const next = { ...prevState, [userName]: {points: currentPath, style: currentStyle } };
+      sendMessage(encode({ event: 'preview', ...next[userName]}));
+      return next;
+    });
   };
 
   const onMouseUp = (_) => {

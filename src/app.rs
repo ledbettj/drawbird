@@ -1,23 +1,24 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
   extract::{
     ws::{Message, WebSocket},
-    State, WebSocketUpgrade,
+    ConnectInfo, State, WebSocketUpgrade,
   },
   response::IntoResponse,
   routing::{get, get_service},
   Router, Server,
 };
+use futures::stream::StreamExt;
+use futures::SinkExt;
+use tokio::sync::Mutex;
+use tower_http::services::{ServeDir, ServeFile};
+use tracing::{debug, error, info};
 
 use crate::{
   events::{ClientEvent, ServerEvent},
   room::RoomSet,
 };
-use futures::stream::StreamExt;
-use futures::SinkExt;
-use tokio::sync::Mutex;
-use tower_http::services::{ServeDir, ServeFile};
 
 pub struct App;
 
@@ -31,29 +32,28 @@ impl App {
       .route("/", index.clone())
       .route("/room/:room", index.clone())
       .route("/rooms/:room", index)
-      .route("/api/rooms", get(App::room_list))
       .route("/ws", get(App::ws_handler))
       .with_state(Arc::new(Mutex::new(state)))
       .fallback(get_service(ServeDir::new("./web")));
 
+    info!("Server starting on {:?}", addr);
+
     Server::bind(&addr)
-      .serve(app.into_make_service())
+      .serve(app.into_make_service_with_connect_info::<SocketAddr>())
       .await
       .expect("Failed to launch server!");
   }
 
-  async fn room_list(State(state): State<AppState>) -> Vec<u8> {
-    let s = state.lock().await;
-    let rooms = s.rooms();
-    println!("listing rooms");
-    rmp_serde::to_vec(&rooms).unwrap()
+  async fn ws_handler(
+    ws: WebSocketUpgrade,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<AppState>,
+  ) -> impl IntoResponse {
+    info!("{:?} websocket connection initiated", addr);
+    ws.on_upgrade(move |socket| App::websocket(socket, state, addr))
   }
 
-  async fn ws_handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl IntoResponse {
-    ws.on_upgrade(|socket| App::websocket(socket, state))
-  }
-
-  async fn websocket(stream: WebSocket, state: AppState) {
+  async fn websocket(stream: WebSocket, state: AppState, addr: SocketAddr) {
     let (mut sender, mut receiver) = stream.split();
     let name = names::Generator::default().next().unwrap();
     let mut tx = None;
@@ -64,12 +64,13 @@ impl App {
       let m = rmp_serde::from_slice::<ClientEvent>(&bin);
       if let Ok(ClientEvent::Join { id }) = m {
         let p = state.lock().await.find_or_create(&id).subscribe();
-        println!("joined {}", id);
+        info!("{:?} joined room '{}'", addr, id);
         room_name = Some(id);
         tx = Some(p.0);
         rx = Some(p.1);
         break;
       }
+      info!("{:?} failed to join, disconnecting.", addr);
       return;
     }
 
@@ -82,32 +83,40 @@ impl App {
     let _s = state.clone();
     let mut tx_task = tokio::spawn(async move {
       {
-        let name_msg = ServerEvent::AssignedName { name: _name };
+        let name_msg = ServerEvent::AssignedName {
+          name: _name.clone(),
+        };
         let payload = rmp_serde::to_vec_named(&name_msg).unwrap();
         if sender.send(Message::Binary(payload)).await.is_err() {
           return;
         }
       }
-      println!("name assigned");
-
+      info!("{:?} assigned name: '{}'", addr, _name);
       {
         if let Some(history) = _s.lock().await.get_history(&_room) {
           for h in history {
             let payload = rmp_serde::to_vec_named(&h).unwrap();
             if sender.send(Message::Binary(payload)).await.is_err() {
+              info!("{:?} [{}] could not send, disconnecting", addr, _name);
               return;
             }
           }
         }
+        info!(
+          "{:?} [{}] replayed room history for '{}'",
+          addr, _name, _room
+        );
       }
 
       while let Ok(msg) = rx.recv().await {
-        println!("sending {:?}", msg);
+        debug!("{:?} [{}] sending {:?}", addr, _name, msg);
+
         if sender
           .send(Message::Binary(rmp_serde::to_vec_named(&msg).unwrap()))
           .await
           .is_err()
         {
+          info!("{:?} [{}] could not send, disconnecting", addr, _name);
           break;
         }
       }
@@ -116,7 +125,7 @@ impl App {
     let mut rx_task = tokio::spawn(async move {
       while let Some(Ok(Message::Binary(blob))) = receiver.next().await {
         if let Ok(event) = rmp_serde::from_slice(&blob) {
-          println!("received {:?}", event);
+          debug!("{:?} [{}] sent {:?}", addr, name, event);
 
           match event {
             ClientEvent::Draw { points, style } => {
@@ -141,11 +150,11 @@ impl App {
               tx.send(ServerEvent::Erase { user: name.clone() }).unwrap();
             }
             m => {
-              println!("unhandled message: {:?}", m);
+              error!("{:?} [{}] sent unhandled message: {:?}", addr, name, m);
             }
           };
         } else {
-          println!("failed to deserialize: {:?}", blob);
+          error!("{:?} [{}] sent unknown message: {:?}", addr, name, blob);
         }
       }
     });
@@ -154,5 +163,7 @@ impl App {
       _ = (&mut tx_task) => rx_task.abort(),
       _ = (&mut rx_task) => tx_task.abort(),
     };
+
+    info!("{:?} disconnected", addr);
   }
 }
