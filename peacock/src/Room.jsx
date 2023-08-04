@@ -1,6 +1,6 @@
 import Canvas from './Canvas';
 
-import { Flex, Button, Slider, SliderFilledTrack, SliderMark, SliderThumb, SliderTrack, Square } from '@chakra-ui/react';
+import { Flex, Button, Slider, SliderFilledTrack, SliderMark, SliderThumb, SliderTrack, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 import  { encode, decode } from '@msgpack/msgpack';
 import React, { useEffect, useState } from 'react';
@@ -182,6 +182,15 @@ const Room = () => {
         </Card>
       </Square>
       <Square flexGrow="1">
+        <Modal isOpen={connectionStatus === 'disconnected'}>
+        <ModalOverlay/>
+          <ModalContent>
+            <ModalHeader>Disconnected</ModalHeader>
+            <ModalBody>
+              Refresh the page to reconnect.  If the problem persists, the server might be down.
+            </ModalBody>
+          </ModalContent>
+        </Modal>
         <Canvas
           id="room"
           draw={
