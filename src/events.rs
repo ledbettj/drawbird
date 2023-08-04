@@ -47,6 +47,9 @@ pub enum ServerEvent {
   Erase {
     user: String,
   },
+  Connect {
+    user: String,
+  },
   Disconnect {
     user: String,
   },

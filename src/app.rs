@@ -106,6 +106,7 @@ impl App {
     }
 
     let tx = tx.unwrap();
+    let misc_tx = tx.clone();
     let final_tx = tx.clone();
     let mut rx = rx.unwrap();
     let room_name = room_name.unwrap();
@@ -124,6 +125,7 @@ impl App {
         }
       }
       info!("{:?} assigned name: '{}'", addr, _name);
+
       {
         if let Some(history) = _s.history.read().await.get(&_room) {
           for h in history {
@@ -139,6 +141,8 @@ impl App {
           addr, _name, _room
         );
       }
+
+      misc_tx.send(ServerEvent::Connect { user: _name.clone() }).unwrap();
 
       while let Ok(msg) = rx.recv().await {
         debug!("{:?} [{}] sending {:?}", addr, _name, msg);

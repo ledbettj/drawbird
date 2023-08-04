@@ -1,7 +1,7 @@
 import Canvas from './Canvas';
 
-import { Flex, Button, Slider, SliderFilledTrack, SliderMark, SliderThumb, SliderTrack, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody } from '@chakra-ui/react';
-import { DeleteIcon } from '@chakra-ui/icons';
+import { Flex, Button, Divider, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ListItem, List, ListIcon } from '@chakra-ui/react';
+import { DeleteIcon, InfoIcon } from '@chakra-ui/icons';
 import  { encode, decode } from '@msgpack/msgpack';
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -32,6 +32,7 @@ const Room = () => {
   const [currentPath, setCurrentPath] = useState([]);
   const [currentStyle, setCurrentStyle] = useState({ color: '#000000', lineWidth: 2 });
   const [previews, setPreviews] = useState({});
+  const [eventLog, setEventLog] = useState([]);
 
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'connecting...',
@@ -40,6 +41,12 @@ const Room = () => {
     [ReadyState.CLOSED]: 'disconnected',
     [ReadyState.UNINSTANTIATED]: 'all fucked up',
   }[readyState];
+
+  const logEvent = (log, text) => {
+    log = log.concat([text]);
+    const idx = Math.max(log.length - 10, 0);
+    return log.slice(idx, idx + 10);
+  };
 
   useEffect(() => {
     const process = async () => {
@@ -50,6 +57,7 @@ const Room = () => {
 
       switch(m.event) {
       case 'assignedName':
+        setEventLog((prevState, _) => logEvent(prevState, `Hello. You look like a ${m.name}.`));
         setUserName(m.name);
         break;
       case 'draw':
@@ -70,9 +78,16 @@ const Room = () => {
         }
         break;
       case 'erase':
+        setEventLog((prevState, _) => logEvent(prevState, `${m.name} erased the canvas.  shame!`));
         setRoomState([]);
         break;
+      case 'connect':
+        if (m.user != userName) {
+          setEventLog((prevState, _) => logEvent(prevState, `${m.user} flew into the room.`));
+        }
+        break;
       case 'disconnect':
+        setEventLog((prevState, _) => logEvent(prevState, `${m.user} left.  Bye felicia!`));
         setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }));
         break;
       default:
@@ -82,7 +97,7 @@ const Room = () => {
     };
 
     process().catch(console.error);
-  }, [lastMessage, setRoomState, setPreviews, setUserName]);
+  }, [lastMessage, setRoomState, setPreviews, setUserName, setEventLog]);
 
   let lastMove = new Date();
 
@@ -211,9 +226,13 @@ const Room = () => {
                 (val) => { setCurrentStyle((prevState, _) => ({val, ...prevState, color: val})); }
               }
             />
-            <div >
-              <Button leftIcon={<DeleteIcon />} onClick={erase}>Erase</Button>
-            </div>
+            <Button mb="8" colorScheme="red" leftIcon={<DeleteIcon />} onClick={erase}>Clear Drawing</Button>
+            <Divider mb="8" />
+            <List mb="8" spacing="3" fontFamily="monospace">
+              {
+                eventLog.map(event => (<ListItem>{event}</ListItem>))
+              }
+            </List>
           </CardBody>
         </Card>
       </Square>
