@@ -18,6 +18,10 @@ const Room = () => {
         `wss://${window.location.host}/ws`
   ;
   const { sendMessage, lastMessage, readyState } = useWebSocket(addr, {
+    shouldReconnect: (_) => true,
+    reconnectAttempts: 10,
+    reconnectInterval: (n) => (n * 1_000),
+    retryOnError: true,
     onOpen: () => {
       sendMessage(encode({ event: 'join', id: roomId }));
     }
