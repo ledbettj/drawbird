@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use axum::{
   extract::{
@@ -11,7 +11,10 @@ use axum::{
 };
 use futures::stream::StreamExt;
 use futures::SinkExt;
-use tokio::sync::Mutex;
+use tokio::sync::{
+  mpsc::{unbounded_channel, UnboundedSender},
+  Mutex, RwLock,
+};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::{debug, error, info};
 
@@ -22,23 +25,47 @@ use crate::{
 
 pub struct App;
 
-type AppState = Arc<Mutex<RoomSet>>;
+struct AppState {
+  rooms: Mutex<RoomSet>,
+  history: RwLock<HashMap<String, Vec<ServerEvent>>>,
+  hist_tx: UnboundedSender<(String, ServerEvent)>,
+}
 
 const BIRDS: &[&str] = &include_lines::include_lines!("birds.txt");
 
 impl App {
   pub async fn start(addr: &SocketAddr) {
     let index = get_service(ServeFile::new("./web/index.html"));
-    let state = RoomSet::new();
+    let (hist_tx, mut hist_rx) = unbounded_channel::<(String, ServerEvent)>();
+    let state = Arc::new(AppState {
+      rooms: Mutex::new(RoomSet::new()),
+      history: RwLock::new(HashMap::new()),
+      hist_tx,
+    });
+
     let app = Router::new()
       .route("/", index.clone())
       .route("/room/:room", index.clone())
       .route("/rooms/:room", index)
       .route("/ws", get(App::ws_handler))
-      .with_state(Arc::new(Mutex::new(state)))
+      .with_state(state.clone())
       .fallback(get_service(ServeDir::new("./web")));
 
     info!("Server starting on {:?}", addr);
+
+    tokio::spawn(async move {
+      while let Some((room, event)) = hist_rx.recv().await {
+        let mut hist = state.history.write().await;
+        debug!("received history {:?}, {:?}", room, event);
+
+        let entry = hist.entry(room).or_insert_with(|| vec![]);
+        if let ServerEvent::Erase { .. } = event {
+          entry.clear();
+        } else {
+          entry.push(event);
+        }
+      }
+    });
 
     Server::bind(&addr)
       .serve(app.into_make_service_with_connect_info::<SocketAddr>())
@@ -49,13 +76,13 @@ impl App {
   async fn ws_handler(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
   ) -> impl IntoResponse {
     info!("{:?} websocket connection initiated", addr);
     ws.on_upgrade(move |socket| App::websocket(socket, state, addr))
   }
 
-  async fn websocket(stream: WebSocket, state: AppState, addr: SocketAddr) {
+  async fn websocket(stream: WebSocket, state: Arc<AppState>, addr: SocketAddr) {
     let (mut sender, mut receiver) = stream.split();
     let name = names::Generator::new(names::ADJECTIVES, BIRDS, names::Name::Plain)
       .next()
@@ -67,7 +94,7 @@ impl App {
     while let Some(Ok(Message::Binary(bin))) = receiver.next().await {
       let m = rmp_serde::from_slice::<ClientEvent>(&bin);
       if let Ok(ClientEvent::Join { id }) = m {
-        let p = state.lock().await.find_or_create(&id).subscribe();
+        let p = state.rooms.lock().await.find_or_create(&id).subscribe();
         info!("{:?} joined room '{}'", addr, id);
         room_name = Some(id);
         tx = Some(p.0);
@@ -97,7 +124,7 @@ impl App {
       }
       info!("{:?} assigned name: '{}'", addr, _name);
       {
-        if let Some(history) = _s.lock().await.get_history(&_room) {
+        if let Some(history) = _s.history.read().await.get(&_room) {
           for h in history {
             let payload = rmp_serde::to_vec_named(&h).unwrap();
             if sender.send(Message::Binary(payload)).await.is_err() {
@@ -138,7 +165,9 @@ impl App {
                 user: name.clone(),
                 style,
               };
-              state.lock().await.record_history(&room_name, se.clone());
+
+              state.hist_tx.send((room_name.clone(), se.clone())).unwrap();
+
               tx.send(se).unwrap();
             }
             ClientEvent::Preview { points, style } => {
@@ -150,8 +179,9 @@ impl App {
               .unwrap();
             }
             ClientEvent::Erase => {
-              state.lock().await.clear_history(&room_name);
-              tx.send(ServerEvent::Erase { user: name.clone() }).unwrap();
+              let se = ServerEvent::Erase { user: name.clone() };
+              state.hist_tx.send((room_name.clone(), se.clone())).unwrap();
+              tx.send(se).unwrap();
             }
             m => {
               error!("{:?} [{}] sent unhandled message: {:?}", addr, name, m);

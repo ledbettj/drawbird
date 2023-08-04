@@ -10,7 +10,6 @@ pub struct Room {
 
 pub struct RoomSet {
   rooms: HashMap<String, Room>,
-  history: HashMap<String, Vec<ServerEvent>>,
 }
 
 impl Room {
@@ -33,24 +32,7 @@ impl RoomSet {
   pub fn new() -> Self {
     Self {
       rooms: HashMap::new(),
-      history: HashMap::new(),
     }
-  }
-
-  pub fn clear_history(&mut self, name: &str) {
-    self.history.remove(name.into());
-  }
-
-  pub fn record_history(&mut self, name: &str, event: ServerEvent) {
-    self
-      .history
-      .entry(name.into())
-      .or_insert_with(|| vec![])
-      .push(event);
-  }
-
-  pub fn get_history(&mut self, name: &str) -> Option<&Vec<ServerEvent>> {
-    self.history.get(name.into())
   }
 
   pub fn find_or_create(&mut self, name: &str) -> &Room {
