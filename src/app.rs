@@ -135,11 +135,11 @@ impl App {
                 style,
               })
               .unwrap();
-            },
+            }
             ClientEvent::Erase => {
               state.lock().await.clear_history(&room_name);
               tx.send(ServerEvent::Erase { user: name.clone() }).unwrap();
-            },
+            }
             m => {
               println!("unhandled message: {:?}", m);
             }

@@ -41,5 +41,5 @@ pub enum ServerEvent {
   },
   Erase {
     user: String,
-  }
+  },
 }

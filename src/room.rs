@@ -38,16 +38,11 @@ impl RoomSet {
   }
 
   pub fn rooms(&self) -> Vec<&String> {
-    self
-      .rooms
-      .keys()
-      .collect()
+    self.rooms.keys().collect()
   }
 
   pub fn clear_history(&mut self, name: &str) {
-    self
-      .history
-      .remove(name.into());
+    self.history.remove(name.into());
   }
 
   pub fn record_history(&mut self, name: &str, event: ServerEvent) {
