@@ -88,7 +88,7 @@ const Room = () => {
 
   const onMouseMove = (event) => {
 
-    const p = { x: event.clientX - event.target.offsetLeft, y: event.clientY - event.target.offsetTop };
+    const p = { x: event.pageX - event.target.offsetLeft, y: event.pageY - event.target.offsetTop };
 
     if (!isDrawing) {
       if (new Date() - lastMove > 250) {
