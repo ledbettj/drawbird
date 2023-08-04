@@ -24,6 +24,8 @@ pub struct App;
 
 type AppState = Arc<Mutex<RoomSet>>;
 
+const BIRDS: &[&str] = &include_lines::include_lines!("birds.txt");
+
 impl App {
   pub async fn start(addr: &SocketAddr) {
     let index = get_service(ServeFile::new("./web/index.html"));
@@ -55,7 +57,9 @@ impl App {
 
   async fn websocket(stream: WebSocket, state: AppState, addr: SocketAddr) {
     let (mut sender, mut receiver) = stream.split();
-    let name = names::Generator::default().next().unwrap();
+    let name = names::Generator::new(names::ADJECTIVES, BIRDS, names::Name::Plain)
+      .next()
+      .unwrap();
     let mut tx = None;
     let mut rx = None;
     let mut room_name = None;
