@@ -106,6 +106,7 @@ impl App {
     }
 
     let tx = tx.unwrap();
+    let final_tx = tx.clone();
     let mut rx = rx.unwrap();
     let room_name = room_name.unwrap();
 
@@ -153,6 +154,7 @@ impl App {
       }
     });
 
+    let again_name = name.clone();
     let mut rx_task = tokio::spawn(async move {
       while let Some(Ok(Message::Binary(blob))) = receiver.next().await {
         if let Ok(event) = rmp_serde::from_slice(&blob) {
@@ -178,6 +180,13 @@ impl App {
               })
               .unwrap();
             }
+            ClientEvent::Hover { point } => {
+              tx.send(ServerEvent::Hover {
+                user: name.clone(),
+                point,
+              })
+              .unwrap();
+            }
             ClientEvent::Erase => {
               let se = ServerEvent::Erase { user: name.clone() };
               state.hist_tx.send((room_name.clone(), se.clone())).unwrap();
@@ -198,6 +207,11 @@ impl App {
       _ = (&mut rx_task) => tx_task.abort(),
     };
 
+    final_tx
+      .send(ServerEvent::Disconnect {
+        user: again_name.clone(),
+      })
+      .unwrap();
     info!("{:?} disconnected", addr);
   }
 }

@@ -20,6 +20,7 @@ pub enum ClientEvent {
   Join { id: String },
   Draw { points: Vec<Point>, style: Style },
   Preview { points: Vec<Point>, style: Style },
+  Hover { point: Point },
   Erase,
 }
 
@@ -39,7 +40,14 @@ pub enum ServerEvent {
     points: Vec<Point>,
     style: Style,
   },
+  Hover {
+    user: String,
+    point: Point,
+  },
   Erase {
+    user: String,
+  },
+  Disconnect {
     user: String,
   },
 }

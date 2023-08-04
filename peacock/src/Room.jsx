@@ -59,6 +59,11 @@ const Room = () => {
           setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }) );
         }
         break;
+      case 'hover':
+        if (m.user != userName) {
+          setPreviews((prevState, _) => ({ ...prevState, [m.user]: { points: [m.point], style: { lineWidth: 0, color: 'rgba(0, 0, 0, 0%)' } }}));
+        }
+        break;
       case 'preview':
         if (m.user != userName) {
           setPreviews((prevState, _) => ({ ...prevState, [m.user]: m }) );
@@ -66,6 +71,9 @@ const Room = () => {
         break;
       case 'erase':
         setRoomState([]);
+        break;
+      case 'disconnect':
+        setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }));
         break;
       default:
         console.log(`unhandled event type ${m.event}`);
@@ -76,11 +84,20 @@ const Room = () => {
     process().catch(console.error);
   }, [lastMessage, setRoomState, setPreviews, setUserName]);
 
+  let lastMove = new Date();
+
   const onMouseMove = (event) => {
-    if (!isDrawing)
-      return;
 
     const p = { x: event.clientX - event.target.offsetLeft, y: event.clientY - event.target.offsetTop };
+
+    if (!isDrawing) {
+      if (new Date() - lastMove > 250) {
+        sendMessage(encode({ event: 'hover', point: p }));
+        lastMove = new Date();
+      }
+      return;
+    }
+
     setCurrentPath((prevState, _) => prevState.concat([p]));
     setPreviews((prevState, _) => {
       const next = { ...prevState, [userName]: {points: currentPath, style: currentStyle } };
