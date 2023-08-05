@@ -93,7 +93,7 @@ impl App {
 
     while let Some(Ok(Message::Binary(bin))) = receiver.next().await {
       let m = rmp_serde::from_slice::<ClientEvent>(&bin);
-      if let Ok(ClientEvent::Join { id }) = m {
+      if let Ok(ClientEvent::Join { id, .. }) = m {
         let p = state.rooms.lock().await.find_or_create(&id).subscribe();
         info!("{:?} joined room '{}'", addr, id);
         room_name = Some(id);
@@ -165,35 +165,15 @@ impl App {
           debug!("{:?} [{}] sent {:?}", addr, name, event);
 
           match event {
-            ClientEvent::Draw { points, style } => {
-              let se = ServerEvent::Draw {
-                points,
-                user: name.clone(),
-                style,
-              };
-
+            ClientEvent::Draw { .. } |
+            ClientEvent::Erase { .. } => {
+              let se = ServerEvent::from(event, &name);
               state.hist_tx.send((room_name.clone(), se.clone())).unwrap();
-
               tx.send(se).unwrap();
-            }
-            ClientEvent::Preview { points, style } => {
-              tx.send(ServerEvent::Preview {
-                points,
-                user: name.clone(),
-                style,
-              })
-              .unwrap();
-            }
-            ClientEvent::Hover { point } => {
-              tx.send(ServerEvent::Hover {
-                user: name.clone(),
-                point,
-              })
-              .unwrap();
-            }
-            ClientEvent::Erase => {
-              let se = ServerEvent::Erase { user: name.clone() };
-              state.hist_tx.send((room_name.clone(), se.clone())).unwrap();
+            },
+            ClientEvent::Preview { .. } |
+            ClientEvent::Hover { .. } => {
+              let se = ServerEvent::from(event, &name);
               tx.send(se).unwrap();
             }
             m => {

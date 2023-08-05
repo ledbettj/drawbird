@@ -1,7 +1,7 @@
 import Canvas from './Canvas';
 
-import { Flex, Button, Divider, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ListItem, List, ListIcon } from '@chakra-ui/react';
-import { DeleteIcon, InfoIcon } from '@chakra-ui/icons';
+import { Flex, Button, Divider, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody } from '@chakra-ui/react';
+import { ArrowBackIcon, DeleteIcon } from '@chakra-ui/icons';
 import  { encode, decode } from '@msgpack/msgpack';
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -10,6 +10,7 @@ import RoomHeader from './RoomHeader';
 import { Card, CardBody} from '@chakra-ui/react';
 import ColorPicker from './ColorPicker';
 import WidthPicker from './WidthPicker';
+import EventLog from './EventLog';
 
 const Room = () => {
   let { roomId } = useParams();
@@ -22,10 +23,14 @@ const Room = () => {
     reconnectAttempts: 10,
     reconnectInterval: (n) => (n * 1_000),
     retryOnError: true,
-    onOpen: () => {
-      sendMessage(encode({ event: 'join', id: roomId }));
-    }
+    onOpen: () => broadcast({ event: 'join', id: roomId })
   });
+
+  const broadcast = (msg) => {
+    msg.uuid = crypto.randomUUID();
+    sendMessage(encode(msg));
+  };
+
   const [roomState, setRoomState] = useState([]);
   const [userName, setUserName] = useState('');
   const [isDrawing, setIsDrawing] = useState(false);
@@ -42,12 +47,6 @@ const Room = () => {
     [ReadyState.UNINSTANTIATED]: 'all fucked up',
   }[readyState];
 
-  const logEvent = (log, text) => {
-    log = log.concat([text]);
-    const idx = Math.max(log.length - 10, 0);
-    return log.slice(idx, idx + 10);
-  };
-
   useEffect(() => {
     const process = async () => {
       if (!lastMessage)
@@ -57,7 +56,7 @@ const Room = () => {
 
       switch(m.event) {
       case 'assignedName':
-        setEventLog((prevState, _) => logEvent(prevState, `Hello. You look like a ${m.name}.`));
+        setEventLog((prevState, _) => prevState.concat([`Hello. You look like a ${m.name}.`]));
         setUserName(m.name);
         break;
       case 'draw':
@@ -78,16 +77,16 @@ const Room = () => {
         }
         break;
       case 'erase':
-        setEventLog((prevState, _) => logEvent(prevState, `${m.name} erased the canvas.  shame!`));
+        setEventLog((prevState, _) => prevState.concat([`${m.user} erased the canvas.  shame!`]));
         setRoomState([]);
         break;
       case 'connect':
         if (m.user != userName) {
-          setEventLog((prevState, _) => logEvent(prevState, `${m.user} flew into the room.`));
+          setEventLog((prevState, _) => prevState.concat([`${m.user} joined.`]));
         }
         break;
       case 'disconnect':
-        setEventLog((prevState, _) => logEvent(prevState, `${m.user} left.  Bye felicia!`));
+        setEventLog((prevState, _) => prevState.concat([`${m.user} left.  Bye felicia!`]));
         setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }));
         break;
       default:
@@ -122,7 +121,7 @@ const Room = () => {
 
     if (!isDrawing) {
       if (new Date() - lastMove > 250) {
-        sendMessage(encode({ event: 'hover', point: p }));
+        broadcast({ event: 'hover', point: p });
         lastMove = new Date();
       }
       return;
@@ -131,14 +130,14 @@ const Room = () => {
     setCurrentPath((prevState, _) => prevState.concat([p]));
     setPreviews((prevState, _) => {
       const next = { ...prevState, [userName]: {points: currentPath, style: currentStyle } };
-      sendMessage(encode({ event: 'preview', ...next[userName]}));
+      broadcast({ event: 'preview', ...next[userName]});
       return next;
     });
   };
 
   const onMouseUp = (_) => {
     if (currentPath.length) {
-      sendMessage(encode({ event: 'draw', points: currentPath, style: currentStyle }));
+      broadcast({ event: 'draw', points: currentPath, style: currentStyle });
       setRoomState((prevState, _) => prevState.concat([{points: currentPath, style: { ...currentStyle } }]));
       setCurrentPath([]);
 
@@ -148,7 +147,12 @@ const Room = () => {
     setIsDrawing(false);
   };
 
-  const onMouseDown = (_) => {
+  const onMouseDown = (event) => {
+    // ignore middle or right clicks.
+    if (event.button) {
+      return;
+    }
+
     setIsDrawing(true);
 
     previews[userName] = null;
@@ -201,7 +205,7 @@ const Room = () => {
   };
 
   const erase = () => {
-    sendMessage(encode({ event: 'erase' }));
+    broadcast({ event: 'erase' });
   };
 
   return (
@@ -215,24 +219,20 @@ const Room = () => {
           <RoomHeader name={roomId} connectionStatus={connectionStatus} userName={userName} />
           <CardBody>
             <WidthPicker
-              mb="8"
+              mb="4"
               onChangeEnd={
                 (val) => { setCurrentStyle((prevState, _) => ({val, ...prevState, lineWidth: val})); }
               }
             />
             <ColorPicker
-              mb="8"
+              mb="4"
               onChangeEnd={
                 (val) => { setCurrentStyle((prevState, _) => ({val, ...prevState, color: val})); }
               }
             />
-            <Button mb="8" colorScheme="red" leftIcon={<DeleteIcon />} onClick={erase}>Clear Drawing</Button>
-            <Divider mb="8" />
-            <List mb="8" spacing="3" fontFamily="monospace">
-              {
-                eventLog.map(event => (<ListItem>{event}</ListItem>))
-              }
-            </List>
+            <Button mb="1" variant="outline" colorScheme="blue" display="block" width="full" leftIcon={<ArrowBackIcon />} onClick={() => {}}>Undo</Button>
+            <Button mb="4" colorScheme="red" display="block" width="full" leftIcon={<DeleteIcon />} onClick={erase}>Clear Drawing</Button>
+            <EventLog maxLength={10} log={eventLog} />
           </CardBody>
         </Card>
       </Square>

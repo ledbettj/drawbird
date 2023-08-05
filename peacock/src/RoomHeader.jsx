@@ -6,10 +6,10 @@ const RoomHeader = ({ name, connectionStatus, userName}) => {
     <CardHeader>
       <Flex spacing='4'>
         <Flex flex='1' gap='4' alignItems='center' flexWrap='wrap'>
-          <Avatar src={Logo} name={userName.split('-').join(' ')} />
+          <Avatar src={Logo} name={name} />
           <Box>
-            <Heading size='sm'>{userName}</Heading>
-            <Text>{name} | {connectionStatus}</Text>
+            <Heading size='sm'>{name}</Heading>
+            <Text>{userName} | {connectionStatus}</Text>
           </Box>
         </Flex>
       </Flex>
