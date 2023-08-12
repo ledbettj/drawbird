@@ -19,6 +19,7 @@ pub struct Style {
 pub enum ClientEvent {
   Join { uuid: String, id: String,  },
   Draw { uuid: String, points: Vec<Point>, style: Style },
+  Fill { uuid: String, point: Point, color: String },
   Preview { uuid: String, points: Vec<Point>, style: Style },
   Hover { uuid: String, point: Point },
   Erase { uuid: String },
@@ -35,6 +36,12 @@ pub enum ServerEvent {
     user: String,
     points: Vec<Point>,
     style: Style,
+  },
+  Fill {
+    uuid: String,
+    user: String,
+    point: Point,
+    color: String,
   },
   Preview {
     uuid: String,
@@ -68,6 +75,7 @@ impl ServerEvent {
       ClientEvent::Preview { uuid, points, style } => ServerEvent::Preview { uuid, points, style, user: user.to_string() },
       ClientEvent::Hover { uuid, point } => ServerEvent::Hover { uuid, point, user: user.to_string() },
       ClientEvent::Erase { uuid } => ServerEvent::Erase { uuid, user: user.to_string() },
+      ClientEvent::Fill { uuid, point, color } => ServerEvent::Fill { uuid, point, color, user: user.to_string() },
     }
   }
 }

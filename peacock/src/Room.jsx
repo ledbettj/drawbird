@@ -1,6 +1,6 @@
 import Canvas from './Canvas';
 
-import { Flex, Button, Divider, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody } from '@chakra-ui/react';
+import { Flex, Button, Icon, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, Grid, GridItem, IconButton } from '@chakra-ui/react';
 import { ArrowBackIcon, DeleteIcon } from '@chakra-ui/icons';
 import  { encode, decode } from '@msgpack/msgpack';
 import React, { useEffect, useState } from 'react';
@@ -11,10 +11,12 @@ import { Card, CardBody} from '@chakra-ui/react';
 import ColorPicker from './ColorPicker';
 import WidthPicker from './WidthPicker';
 import EventLog from './EventLog';
+import { GrEdit, GrPaint } from 'react-icons/gr';
+import Painter from './Painter';
 
 const Room = () => {
   let { roomId } = useParams();
-  const addr = window.location.hostname == 'localhost' ?
+  const addr = window.location.hostname === 'localhost' ?
         'ws://localhost:3500/ws' :
         `wss://${window.location.host}/ws`
   ;
@@ -31,13 +33,14 @@ const Room = () => {
     sendMessage(encode(msg));
   };
 
-  const [roomState, setRoomState] = useState([]);
   const [userName, setUserName] = useState('');
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPath, setCurrentPath] = useState([]);
   const [currentStyle, setCurrentStyle] = useState({ color: '#000000', lineWidth: 2 });
   const [previews, setPreviews] = useState({});
   const [eventLog, setEventLog] = useState([]);
+  const [drawMode, setDrawMode] = useState('draw');
+  const [painter, ] = useState(new Painter(3440, 1920));
 
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'connecting...',
@@ -60,28 +63,28 @@ const Room = () => {
         setUserName(m.name);
         break;
       case 'draw':
-        setRoomState((prevState, _) => prevState.concat([m]));
-
-        if (m.user != userName) {
+      case 'fill':
+        painter.commit(m);
+        if (m.user !== userName) {
           setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }) );
         }
         break;
       case 'hover':
-        if (m.user != userName) {
+        if (m.user !== userName) {
           setPreviews((prevState, _) => ({ ...prevState, [m.user]: { points: [m.point], style: { lineWidth: 0, color: 'rgba(0, 0, 0, 0%)' } }}));
         }
         break;
       case 'preview':
-        if (m.user != userName) {
+        if (m.user !== userName) {
           setPreviews((prevState, _) => ({ ...prevState, [m.user]: m }) );
         }
         break;
       case 'erase':
         setEventLog((prevState, _) => prevState.concat([`${m.user} erased the canvas.  shame!`]));
-        setRoomState([]);
+        painter.erase();
         break;
       case 'connect':
-        if (m.user != userName) {
+        if (m.user !== userName) {
           setEventLog((prevState, _) => prevState.concat([`${m.user} joined.`]));
         }
         break;
@@ -96,7 +99,7 @@ const Room = () => {
     };
 
     process().catch(console.error);
-  }, [lastMessage, setRoomState, setPreviews, setUserName, setEventLog]);
+  }, [lastMessage, setPreviews, setUserName, setEventLog, userName, painter]);
 
   let lastMove = new Date();
 
@@ -136,9 +139,11 @@ const Room = () => {
   };
 
   const onMouseUp = (_) => {
+    if (!isDrawing)
+      return;
+
     if (currentPath.length) {
       broadcast({ event: 'draw', points: currentPath, style: currentStyle });
-      setRoomState((prevState, _) => prevState.concat([{points: currentPath, style: { ...currentStyle } }]));
       setCurrentPath([]);
 
       previews[userName] = null;
@@ -148,60 +153,25 @@ const Room = () => {
   };
 
   const onMouseDown = (event) => {
+    const p = { x: event.pageX - event.target.offsetLeft, y: event.pageY - event.target.offsetTop };
+
     // ignore middle or right clicks.
     if (event.button) {
       return;
     }
 
-    setIsDrawing(true);
-
-    previews[userName] = null;
-    setPreviews(previews);
-  };
-
-  const drawEvent = (ctx, event, badge) => {
-    if (!event.points.length)
-      return;
-
-    ctx.save();
-    ctx.lineWidth = event.style.lineWidth;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = event.style.color;
-    ctx.fillStyle = event.style.Color;
-    ctx.beginPath();
-
-    ctx.moveTo(event.points[0].x, event.points[0].y);
-
-    let i;
-
-    if (event.points.length <= 3) {
-      event.points.forEach(({ x, y }) => {
-        ctx.lineTo(x, y);
-      });
-    } else {
-
-      for (i = 1; i < event.points.length - 2; ++i) {
-        let p = event.points;
-        let xc = (p[i].x + p[i + 1].x) / 2;
-        let yc = (p[i].y + p[i + 1].y) / 2;
-        ctx.quadraticCurveTo(p[i].x, p[i].y, xc, yc);
-      }
-
-      ctx.quadraticCurveTo(event.points[i].x, event.points[i].y, event.points[i + 1].x, event.points[i + 1].y);
+    switch(drawMode) {
+    case 'draw':
+      setIsDrawing(true);
+      previews[userName] = null;
+      setPreviews(previews);
+      break;
+    case 'fill':
+      broadcast({ event: 'fill', point: p, color: currentStyle.color });
+      break;
+    default:
+      break;
     }
-
-    ctx.stroke();
-
-    if (badge) {
-      const last = event.points[event.points.length - 1];
-      if (last) {
-        ctx.fillText(badge, last.x + 10, last.y - 10);
-      }
-    }
-
-    ctx.closePath();
-    ctx.restore();
   };
 
   const erase = () => {
@@ -218,6 +188,14 @@ const Room = () => {
         <Card w="100%" h="100%">
           <RoomHeader name={roomId} connectionStatus={connectionStatus} userName={userName} />
           <CardBody>
+            <Grid gap={4} mb="8" templateColumns='repeat(5, 1fr)'>
+              <GridItem>
+                <IconButton icon={<Icon as={GrEdit}/>} onClick={() => setDrawMode('draw')} colorScheme="cyan" variant="outline" isActive={ drawMode === 'draw'} />
+              </GridItem>
+              <GridItem>
+                <IconButton icon={<Icon as={GrPaint} />} onClick={() => setDrawMode('fill')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'fill' } />
+              </GridItem>
+            </Grid>
             <WidthPicker
               mb="4"
               onChangeEnd={
@@ -230,7 +208,7 @@ const Room = () => {
                 (val) => { setCurrentStyle((prevState, _) => ({val, ...prevState, color: val})); }
               }
             />
-            <Button mb="1" variant="outline" colorScheme="blue" display="block" width="full" leftIcon={<ArrowBackIcon />} onClick={() => {}}>Undo</Button>
+            {/* <Button mb="1" variant="outline" colorScheme="blue" display="block" width="full" leftIcon={<ArrowBackIcon />} onClick={() => {}}>Undo</Button> */}
             <Button mb="4" colorScheme="red" display="block" width="full" leftIcon={<DeleteIcon />} onClick={erase}>Clear Drawing</Button>
             <EventLog maxLength={10} log={eventLog} />
           </CardBody>
@@ -250,14 +228,14 @@ const Room = () => {
           id="room"
           draw={
             (ctx) => {
-              roomState.forEach((event) => drawEvent(ctx, event));
+              ctx.drawImage(painter.getCanvas(), 0, 0);
 
               for (let key in previews) {
                 let event = previews[key];
                 if (!event)
                   continue;
 
-                drawEvent(ctx, event, key);
+                painter.drawEventCanvas(ctx, event, key);
               };
             }
           }

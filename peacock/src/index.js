@@ -9,17 +9,17 @@ import App from './App';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 document.body.addEventListener("touchstart", function (e) {
-  if (e.target.id == 'room') {
+  if (e.target.id === 'room') {
     e.preventDefault();
   }
 }, false);
 document.body.addEventListener("touchend", function (e) {
-  if (e.target.id == 'room') {
+  if (e.target.id === 'room') {
     e.preventDefault();
   }
 }, false);
 document.body.addEventListener("touchmove", function (e) {
-  if (e.target.id == 'room') {
+  if (e.target.id === 'room') {
     e.preventDefault();
   }
 }, false);

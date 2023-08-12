@@ -166,6 +166,7 @@ impl App {
 
           match event {
             ClientEvent::Draw { .. } |
+            ClientEvent::Fill { .. } |
             ClientEvent::Erase { .. } => {
               let se = ServerEvent::from(event, &name);
               state.hist_tx.send((room_name.clone(), se.clone())).unwrap();

@@ -5,16 +5,16 @@ const ColorPicker = ({ onChangeEnd, ...props }) => {
   const [color, setColor] = useState("black");
 
   const colors = [
-    "black",
-    "red",
-    "gray",
-    "green",
-    "blue",
-    "yellow",
-    "orange",
-    "purple",
-    "pink",
-    "white",
+    "#000000",
+    "#ff0000",
+    "#aaaaaa",
+    "#00ff00",
+    "#0000ff",
+    "#ffff00",
+    "#ffa500",
+    "#dda0dd",
+    "#ffc0cb",
+    "#ffffff",
   ];
 
   return (

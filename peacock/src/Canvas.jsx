@@ -8,8 +8,8 @@ const Canvas = (props) => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    setWidth(canvas.clientWidth);
-    setHeight(canvas.clientHeight);
+    setWidth(canvas.scrollWidth);
+    setHeight(canvas.scrollHeight);
   }, []);
 
   useEffect(() => {

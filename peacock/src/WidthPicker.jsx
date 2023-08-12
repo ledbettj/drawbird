@@ -17,8 +17,8 @@ const WidthPicker = ({ onChangeEnd, ...props }) => {
       <SliderMark
         value={value}
         textAlign="center"
-        mt="-10"
-        ml="-5"
+        mt="-8"
+        ml="-6"
         w="12"
       >
         {value}
