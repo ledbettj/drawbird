@@ -1,7 +1,7 @@
 import Canvas from './Canvas';
 
 import { Flex, Button, Icon, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, Grid, GridItem, IconButton } from '@chakra-ui/react';
-import { ArrowBackIcon, DeleteIcon } from '@chakra-ui/icons';
+import { DeleteIcon } from '@chakra-ui/icons';
 import  { encode, decode } from '@msgpack/msgpack';
 import React, { useEffect, useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
@@ -12,6 +12,7 @@ import ColorPicker from './ColorPicker';
 import WidthPicker from './WidthPicker';
 import EventLog from './EventLog';
 import { GrEdit, GrPaint } from 'react-icons/gr';
+import { BsCircle, BsCircleFill, BsSquare, BsSquareFill } from 'react-icons/bs';
 import { BlobFishContext } from './BlobFish';
 import Painter from './Painter';
 
@@ -130,22 +131,49 @@ const Room = () => {
       return;
     }
 
-    setCurrentPath((prevState, _) => prevState.concat([p]));
+    switch(drawMode) {
+    case 'draw':
+      setCurrentPath((prevState, _) => prevState.concat([p]));
+      break;
+    default:
+      setCurrentPath((prevState, _) => {
+        if (prevState.length == 1) {
+          return prevState.concat([p]);
+        } else {
+          prevState[1] = p;
+          return prevState;
+        }
+      });
+      break;
+    };
+
     setPreviews((prevState, _) => {
-      const next = { ...prevState, [userName]: {points: currentPath, style: currentStyle } };
-      broadcast({ event: 'preview', ...next[userName]});
+      const next = { ...prevState, [userName]: { event: 'draw', points: currentPath, kind: drawMode, style: currentStyle } };
+      broadcast({ ...next[userName], event: 'preview' });
       return next;
     });
   };
 
-  const onMouseUp = (_) => {
+  const onMouseUp = (event) => {
     if (!isDrawing)
       return;
 
-    if (currentPath.length) {
-      broadcast({ event: 'draw', points: currentPath, style: currentStyle });
-      setCurrentPath([]);
-    }
+    const p = { x: event.pageX - event.target.offsetLeft, y: event.pageY - event.target.offsetTop };
+
+    switch(drawMode) {
+    case 'draw':
+      if (currentPath.length) {
+        broadcast({ event: 'draw', kind: drawMode, points: currentPath, style: currentStyle });
+        setCurrentPath([]);
+      }
+    default:
+      if (currentPath.length > 1) {
+        broadcast({ event: 'draw', kind: drawMode, points: currentPath, style: currentStyle });
+        setCurrentPath([]);
+      }
+      break;
+    };
+
     setIsDrawing(false);
   };
 
@@ -156,17 +184,16 @@ const Room = () => {
     if (event.button) {
       return;
     }
+    setIsDrawing(drawMode !== 'fill');
 
     switch(drawMode) {
-    case 'draw':
-      setIsDrawing(true);
-      previews[userName] = null;
-      setPreviews(previews);
-      break;
     case 'fill':
       broadcast({ event: 'fill', point: p, color: currentStyle.color });
       break;
     default:
+      setCurrentPath([p]);
+      previews[userName] = null;
+      setPreviews(previews);
       break;
     }
   };
@@ -192,6 +219,22 @@ const Room = () => {
               <GridItem>
                 <IconButton icon={<Icon as={GrPaint} />} onClick={() => setDrawMode('fill')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'fill' } />
               </GridItem>
+              <GridItem/>
+              <GridItem/>
+              <GridItem/>
+              <GridItem>
+                <IconButton icon={<Icon as={BsCircleFill} color="black" />} onClick={() => setDrawMode('fillOval')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'fillOval' } />
+              </GridItem>
+              <GridItem>
+                <IconButton icon={<Icon as={BsSquareFill} color="black"/>} onClick={() => setDrawMode('fillRect')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'fillRect' } />
+              </GridItem>
+              <GridItem>
+                <IconButton icon={<Icon as={BsCircle} color="black"/>} onClick={() => setDrawMode('strokeOval')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'strokeOval' } />
+              </GridItem>
+              <GridItem>
+    <IconButton icon={<Icon as={BsSquare}  color="black" />} onClick={() => setDrawMode('strokeRect')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'strokeRect' } />
+              </GridItem>
+
             </Grid>
             <WidthPicker
               mb="4"
@@ -232,7 +275,7 @@ const Room = () => {
                 if (!event)
                   continue;
 
-                painter.drawEventCanvas(ctx, event, key);
+                painter.previewEvent(ctx, event, key);
               };
             }
           }

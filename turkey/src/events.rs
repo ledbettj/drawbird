@@ -24,6 +24,7 @@ pub enum ClientEvent {
   Draw {
     uuid: String,
     points: Vec<Point>,
+    kind: String,
     style: Style,
   },
   Fill {
@@ -34,6 +35,7 @@ pub enum ClientEvent {
   Preview {
     uuid: String,
     points: Vec<Point>,
+    kind: String,
     style: Style,
   },
   Hover {
@@ -55,6 +57,7 @@ pub enum ServerEvent {
     uuid: String,
     user: String,
     points: Vec<Point>,
+    kind: String,
     style: Style,
   },
   Fill {
@@ -66,6 +69,7 @@ pub enum ServerEvent {
   Preview {
     uuid: String,
     user: String,
+    kind: String,
     points: Vec<Point>,
     style: Style,
   },
@@ -95,10 +99,12 @@ impl ServerEvent {
       ClientEvent::Draw {
         uuid,
         points,
+        kind,
         style,
       } => ServerEvent::Draw {
         uuid,
         points,
+        kind,
         style,
         user: user.to_string(),
       },
@@ -106,10 +112,12 @@ impl ServerEvent {
         uuid,
         points,
         style,
+        kind,
       } => ServerEvent::Preview {
         uuid,
         points,
         style,
+        kind,
         user: user.to_string(),
       },
       ClientEvent::Hover { uuid, point } => ServerEvent::Hover {
