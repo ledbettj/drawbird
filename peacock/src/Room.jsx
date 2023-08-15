@@ -1,6 +1,6 @@
 import Canvas from './Canvas';
 
-import { Flex, Button, Icon, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, Grid, GridItem, IconButton } from '@chakra-ui/react';
+import { Flex, Button, Icon, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, Grid, GridItem, IconButton, Tooltip } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 import  { encode, decode } from '@msgpack/msgpack';
 import React, { useEffect, useState, useContext } from 'react';
@@ -15,6 +15,14 @@ import { GrEdit, GrPaint } from 'react-icons/gr';
 import { BsCircle, BsCircleFill, BsSlashLg, BsSquare, BsSquareFill } from 'react-icons/bs';
 import { BlobFishContext } from './BlobFish';
 import Painter from './Painter';
+
+const DrawModeButton = ({ mode, drawMode, setDrawMode, icon, label }) => {
+  return (
+    <Tooltip label={label} hasArrow bg="cyan.100" color="black" placement="right">
+      <IconButton icon={<Icon as={icon} color="black"/>} onClick={() => setDrawMode(mode)} colorScheme="cyan" variant="outline" isActive={ mode === drawMode} />
+    </Tooltip>
+  );
+};
 
 const Room = () => {
   const blobfish = useContext(BlobFishContext);
@@ -214,28 +222,27 @@ const Room = () => {
           <CardBody>
             <Grid gap={4} mb="8" templateColumns='repeat(5, 1fr)'>
               <GridItem>
-                <IconButton icon={<Icon as={GrEdit}/>} onClick={() => setDrawMode('draw')} colorScheme="cyan" variant="outline" isActive={ drawMode === 'draw'} />
+                <DrawModeButton icon={GrEdit} drawMode={drawMode} setDrawMode={setDrawMode} mode="draw" label="Pencil" />
               </GridItem>
               <GridItem>
-                <IconButton icon={<Icon as={GrPaint} />} onClick={() => setDrawMode('fill')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'fill' } />
+                <DrawModeButton icon={BsSlashLg} drawMode={drawMode} setDrawMode={setDrawMode} mode="line" label="Line" />
               </GridItem>
               <GridItem>
-                <IconButton icon={<Icon as={BsSlashLg} color="black" />} onClick={() => setDrawMode('line')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'line' } />
-
+                <DrawModeButton icon={GrPaint} drawMode={drawMode} setDrawMode={setDrawMode} mode="fill" label="Flood Fill" />
               </GridItem>
               <GridItem/>
               <GridItem/>
               <GridItem>
-                <IconButton icon={<Icon as={BsCircleFill} color="black" />} onClick={() => setDrawMode('fillOval')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'fillOval' } />
+                <DrawModeButton icon={BsCircleFill} drawMode={drawMode} setDrawMode={setDrawMode} mode="fillOval" label="Filled Ellipse" />
               </GridItem>
               <GridItem>
-                <IconButton icon={<Icon as={BsSquareFill} color="black"/>} onClick={() => setDrawMode('fillRect')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'fillRect' } />
+                <DrawModeButton icon={BsSquareFill} drawMode={drawMode} setDrawMode={setDrawMode} mode="fillRect" label="Filled Rectangle" />
               </GridItem>
               <GridItem>
-                <IconButton icon={<Icon as={BsCircle} color="black"/>} onClick={() => setDrawMode('strokeOval')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'strokeOval' } />
+                <DrawModeButton icon={BsCircle} drawMode={drawMode} setDrawMode={setDrawMode} mode="strokeOval" label="Ellipse" />
               </GridItem>
               <GridItem>
-    <IconButton icon={<Icon as={BsSquare}  color="black" />} onClick={() => setDrawMode('strokeRect')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'strokeRect' } />
+                <DrawModeButton icon={BsSquare} drawMode={drawMode} setDrawMode={setDrawMode} mode="strokeRect" label="Rectangle" />
               </GridItem>
 
             </Grid>

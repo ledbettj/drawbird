@@ -83,8 +83,8 @@ class Painter {
     case 'fillOval':
       const x = (op.points[0].x + op.points[1].x) / 2.0;
       const y = (op.points[0].y + op.points[1].y) / 2.0;
-      const rx = Math.abs(op.points[0].x - op.points[1].x);
-      const ry = Math.abs(op.points[0].y - op.points[1].y);
+      const rx = Math.abs(op.points[0].x - op.points[1].x) / 2.0;
+      const ry = Math.abs(op.points[0].y - op.points[1].y) / 2.0;
       ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
       break;
