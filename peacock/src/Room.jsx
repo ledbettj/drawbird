@@ -166,7 +166,7 @@ const Room = () => {
     if (!isDrawing)
       return;
 
-    const p = { x: event.pageX - event.target.offsetLeft, y: event.pageY - event.target.offsetTop };
+    const _p = { x: event.pageX - event.target.offsetLeft, y: event.pageY - event.target.offsetTop };
 
     switch(drawMode) {
     case 'draw':

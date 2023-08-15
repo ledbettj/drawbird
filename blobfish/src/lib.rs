@@ -36,13 +36,13 @@ impl Point {
     ((self.y * width + self.x) * 4) as usize
   }
 
-  pub fn from_js_value(value: &JsValue) -> Self {
+  pub fn from_js_value(value: &JsValue, x_prop: &JsValue, y_prop: &JsValue) -> Self {
     Self {
-      x: Reflect::get(value, &JsValue::from_str("x"))
+      x: Reflect::get(value, x_prop)
         .unwrap()
         .as_f64()
         .unwrap() as isize,
-      y: Reflect::get(value, &JsValue::from_str("y"))
+      y: Reflect::get(value, y_prop)
         .unwrap()
         .as_f64()
         .unwrap() as isize,
@@ -88,7 +88,7 @@ pub fn setup() {
   panic::set_hook(Box::new(console_error_panic_hook::hook));
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = strokeLine)]
 pub fn stroke_line(
   ctx: CanvasRenderingContext2d,
   points: js_sys::Array,
@@ -109,25 +109,28 @@ pub fn stroke_line(
 
   ctx.begin_path();
 
-  let first = Point::from_js_value(&points.get(0));
-  let last = Point::from_js_value(&points.get(points.length() - 1));
+  let x_prop = JsValue::from_str("x");
+  let y_prop = JsValue::from_str("y");
+
+  let first = Point::from_js_value(&points.get(0), &x_prop, &y_prop);
+  let last = Point::from_js_value(&points.get(points.length() - 1), &x_prop, &y_prop);
 
   ctx.move_to(first.x as f64, first.y as f64);
 
   if points.length() <= 3 {
     points.for_each(&mut |point, _index, _| {
-      let point = Point::from_js_value(&point);
+      let point = Point::from_js_value(&point, &x_prop, &y_prop);
       ctx.line_to(point.x as f64, point.y as f64);
     });
   } else {
     for i in 1..(points.length() - 2) {
-      let point = Point::from_js_value(&points.get(i));
-      let next = Point::from_js_value(&points.get(i + 1));
+      let point = Point::from_js_value(&points.get(i), &x_prop, &y_prop);
+      let next = Point::from_js_value(&points.get(i + 1), &x_prop, &y_prop);
       let xc = (point.x + next.x) as f64 / 2.0;
       let yc = (point.y + next.y) as f64 / 2.0;
       ctx.quadratic_curve_to(point.x as f64, point.y as f64, xc, yc);
     }
-    let point = Point::from_js_value(&points.get(points.length() - 2));
+    let point = Point::from_js_value(&points.get(points.length() - 2), &x_prop, &y_prop);
     ctx.quadratic_curve_to(point.x as f64, point.y as f64, last.x as f64, last.y as f64);
   }
 
@@ -142,7 +145,7 @@ pub fn stroke_line(
   ctx.restore();
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = floodFill)]
 pub fn flood_fill(ctx: CanvasRenderingContext2d, p: Point, color: &str) {
   let rgb = RGBA::try_from_str(color);
 

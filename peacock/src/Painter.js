@@ -16,7 +16,7 @@ class Painter {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  commit(op, badge) {
+  commit(op) {
     this.doCommit(this.ctx, op);
   }
 
@@ -34,7 +34,7 @@ class Painter {
       break;
     case 'fill': {
       let p = new this.blobfish.Point(op.point.x, op.point.y);
-      this.blobfish.flood_fill(ctx, p, op.color);
+      this.blobfish.floodFill(ctx, p, op.color);
       break;
     }
     default:
@@ -59,6 +59,8 @@ class Painter {
     ctx.lineCaps = 'round';
     ctx.lineJoin = 'round';
 
+    const fill = op.kind.startsWith("fill");
+
     switch(op.kind) {
     case 'line':
       ctx.moveTo(op.points[0].x, op.points[0].y);
@@ -66,30 +68,31 @@ class Painter {
       ctx.stroke();
       break;
     case 'strokeRect':
-      ctx.strokeRect(op.points[0].x, op.points[0].y, op.points[1].x - op.points[0].x, op.points[1].y - op.points[0].y);
-      break;
-    case 'fillRect':
-      ctx.fillRect(op.points[0].x, op.points[0].y, op.points[1].x - op.points[0].x, op.points[1].y - op.points[0].y);
-      break;
-    case 'strokeOval': {
-      const x = (op.points[0].x + op.points[1].x) / 2.0;
-      const y = (op.points[0].y + op.points[1].y) / 2.0;
-      const rx = Math.abs(op.points[0].x - op.points[1].x);
-      const ry = Math.abs(op.points[0].y - op.points[1].y);
-      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-      ctx.stroke();
+    case 'fillRect': {
+      const fn = fill ? ctx.fillRect : ctx.strokeRect;
+      fn.apply(ctx, [op.points[0].x, op.points[0].y, op.points[1].x - op.points[0].x, op.points[1].y - op.points[0].y]);
       break;
     }
-    case 'fillOval':
+    case 'strokeOval':
+    case 'fillOval': {
       const x = (op.points[0].x + op.points[1].x) / 2.0;
       const y = (op.points[0].y + op.points[1].y) / 2.0;
       const rx = Math.abs(op.points[0].x - op.points[1].x) / 2.0;
       const ry = Math.abs(op.points[0].y - op.points[1].y) / 2.0;
       ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
+      if (fill) {
+        ctx.fill()
+      } else {
+        ctx.stroke();
+      }
       break;
     }
+    }
     ctx.closePath();
+
+    if (badge) {
+      ctx.fillText(badge, op.points[1].x + 10, op.points[1].y + 10);
+    }
     ctx.restore();
   }
 
@@ -98,7 +101,7 @@ class Painter {
   }
 
   drawEventCanvas(ctx, event, badge) {
-    this.blobfish.stroke_line(ctx, event.points, event.style.color, event.style.lineWidth, badge);
+    this.blobfish.strokeLine(ctx, event.points, event.style.color, event.style.lineWidth, badge);
   }
 }
 
