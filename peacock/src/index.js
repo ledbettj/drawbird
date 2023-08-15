@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 
 import { ChakraProvider } from '@chakra-ui/react'
+import { BlobFishProvider } from './BlobFish';
 
 import './index.css';
 import App from './App';
@@ -26,10 +27,12 @@ document.body.addEventListener("touchmove", function (e) {
 
 root.render(
   <React.StrictMode>
-    <ChakraProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </ChakraProvider>
+    <BlobFishProvider>
+      <ChakraProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ChakraProvider>
+    </BlobFishProvider>
   </React.StrictMode>
 );

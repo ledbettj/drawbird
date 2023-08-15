@@ -1,6 +1,5 @@
 import './App.css';
 import Room from './Room';
-
 import { Routes, Route } from 'react-router-dom';
 
 const App = () => {

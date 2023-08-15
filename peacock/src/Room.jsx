@@ -3,7 +3,7 @@ import Canvas from './Canvas';
 import { Flex, Button, Icon, Square, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, Grid, GridItem, IconButton } from '@chakra-ui/react';
 import { ArrowBackIcon, DeleteIcon } from '@chakra-ui/icons';
 import  { encode, decode } from '@msgpack/msgpack';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import useWebSocket,  {ReadyState} from 'react-use-websocket';
 import RoomHeader from './RoomHeader';
@@ -12,9 +12,11 @@ import ColorPicker from './ColorPicker';
 import WidthPicker from './WidthPicker';
 import EventLog from './EventLog';
 import { GrEdit, GrPaint } from 'react-icons/gr';
+import { BlobFishContext } from './BlobFish';
 import Painter from './Painter';
 
 const Room = () => {
+  const blobfish = useContext(BlobFishContext);
   let { roomId } = useParams();
   const addr = window.location.hostname === 'localhost' ?
         'ws://localhost:3500/ws' :
@@ -40,7 +42,7 @@ const Room = () => {
   const [previews, setPreviews] = useState({});
   const [eventLog, setEventLog] = useState([]);
   const [drawMode, setDrawMode] = useState('draw');
-  const [painter, ] = useState(new Painter(3440, 1920));
+  const [painter, ] = useState(new Painter(3440, 1920, blobfish));
 
   const connectionStatus = {
     [ReadyState.CONNECTING]: 'connecting...',

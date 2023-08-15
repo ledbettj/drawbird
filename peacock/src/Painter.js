@@ -1,11 +1,10 @@
-import floodFill from './floodFill';
-
 class Painter {
-  constructor(width, height) {
+  constructor(width, height, blobfish) {
     this.canvas = document.createElement('canvas');
     this.canvas.width = width;
     this.canvas.height = height;
     this.ctx = this.canvas.getContext('2d');
+    this.blobfish = blobfish;
   }
 
   resize(width, height) {
@@ -22,10 +21,11 @@ class Painter {
     case 'draw':
       this.drawEvent(op);
       break;
-    case 'fill':
-      console.log(op);
-      floodFill(this.ctx, op.point, op.color);
+    case 'fill': {
+      let p = new this.blobfish.Point(op.point.x, op.point.y);
+      this.blobfish.flood_fill(this.ctx, p, op.color);
       break;
+    }
     default:
       console.log('unknown operation', op);
       break;
