@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
+use std::panic;
 use wasm_bindgen::{prelude::*, Clamped};
 use web_sys::{CanvasRenderingContext2d, ImageData};
-use std::panic;
 
 #[wasm_bindgen]
 extern "C" {
@@ -38,15 +38,15 @@ impl RGBA {
       r: slice[index],
       g: slice[index + 1],
       b: slice[index + 2],
-      a: slice[index + 3]
+      a: slice[index + 3],
     }
   }
 
   pub fn equals_at_slice(&self, slice: &[u8], index: usize) -> bool {
-    self.r == slice[index] &&
-      self.g == slice[index + 1] &&
-      self.b == slice[index + 2] &&
-      self.a == slice[index + 3]
+    self.r == slice[index]
+      && self.g == slice[index + 1]
+      && self.b == slice[index + 2]
+      && self.a == slice[index + 3]
   }
 }
 
@@ -69,7 +69,6 @@ fn color_rgb(color: &str) -> Option<RGBA> {
     a: 0xFF,
   })
 }
-
 
 fn point_to_addr(p: &Point, width: isize) -> usize {
   ((p.y * width + p.x) * 4) as usize
@@ -108,7 +107,7 @@ pub fn flood_fill(ctx: CanvasRenderingContext2d, p: Point, color: &str) {
     let Point { x, y } = next;
     let addr = point_to_addr(&next, width);
 
-    if target_color.equals_at_slice(&pixel_data, addr)  {
+    if target_color.equals_at_slice(&pixel_data, addr) {
       pixel_data[addr] = fill_color.r;
       pixel_data[addr + 1] = fill_color.g;
       pixel_data[addr + 2] = fill_color.b;
@@ -120,8 +119,12 @@ pub fn flood_fill(ctx: CanvasRenderingContext2d, p: Point, color: &str) {
         .filter(|p| p.x >= 0 && p.x < width && p.y >= 0 && p.y < height)
         .for_each(|p| stack.push_back(p));
     }
-
   }
-  let data = ImageData::new_with_u8_clamped_array_and_sh(Clamped(&pixel_data.0), width as u32, height as u32).unwrap();
+  let data = ImageData::new_with_u8_clamped_array_and_sh(
+    Clamped(&pixel_data.0),
+    width as u32,
+    height as u32,
+  )
+  .unwrap();
   let _ = ctx.put_image_data(&data, 0.0, 0.0);
 }

@@ -142,7 +142,11 @@ impl App {
         );
       }
 
-      misc_tx.send(ServerEvent::Connect { user: _name.clone() }).unwrap();
+      misc_tx
+        .send(ServerEvent::Connect {
+          user: _name.clone(),
+        })
+        .unwrap();
 
       while let Ok(msg) = rx.recv().await {
         debug!("{:?} [{}] sending {:?}", addr, _name, msg);
@@ -165,15 +169,12 @@ impl App {
           debug!("{:?} [{}] sent {:?}", addr, name, event);
 
           match event {
-            ClientEvent::Draw { .. } |
-            ClientEvent::Fill { .. } |
-            ClientEvent::Erase { .. } => {
+            ClientEvent::Draw { .. } | ClientEvent::Fill { .. } | ClientEvent::Erase { .. } => {
               let se = ServerEvent::from(event, &name);
               state.hist_tx.send((room_name.clone(), se.clone())).unwrap();
               tx.send(se).unwrap();
-            },
-            ClientEvent::Preview { .. } |
-            ClientEvent::Hover { .. } => {
+            }
+            ClientEvent::Preview { .. } | ClientEvent::Hover { .. } => {
               let se = ServerEvent::from(event, &name);
               tx.send(se).unwrap();
             }

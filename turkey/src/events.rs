@@ -17,12 +17,32 @@ pub struct Style {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "event", rename_all = "camelCase")]
 pub enum ClientEvent {
-  Join { uuid: String, id: String,  },
-  Draw { uuid: String, points: Vec<Point>, style: Style },
-  Fill { uuid: String, point: Point, color: String },
-  Preview { uuid: String, points: Vec<Point>, style: Style },
-  Hover { uuid: String, point: Point },
-  Erase { uuid: String },
+  Join {
+    uuid: String,
+    id: String,
+  },
+  Draw {
+    uuid: String,
+    points: Vec<Point>,
+    style: Style,
+  },
+  Fill {
+    uuid: String,
+    point: Point,
+    color: String,
+  },
+  Preview {
+    uuid: String,
+    points: Vec<Point>,
+    style: Style,
+  },
+  Hover {
+    uuid: String,
+    point: Point,
+  },
+  Erase {
+    uuid: String,
+  },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -66,16 +86,47 @@ pub enum ServerEvent {
   },
 }
 
-
 impl ServerEvent {
   pub fn from(value: ClientEvent, user: &str) -> Self {
     match value {
-      ClientEvent::Join { .. } => ServerEvent::Connect { user: user.to_string() },
-      ClientEvent::Draw { uuid, points, style } => ServerEvent::Draw { uuid, points, style, user: user.to_string() },
-      ClientEvent::Preview { uuid, points, style } => ServerEvent::Preview { uuid, points, style, user: user.to_string() },
-      ClientEvent::Hover { uuid, point } => ServerEvent::Hover { uuid, point, user: user.to_string() },
-      ClientEvent::Erase { uuid } => ServerEvent::Erase { uuid, user: user.to_string() },
-      ClientEvent::Fill { uuid, point, color } => ServerEvent::Fill { uuid, point, color, user: user.to_string() },
+      ClientEvent::Join { .. } => ServerEvent::Connect {
+        user: user.to_string(),
+      },
+      ClientEvent::Draw {
+        uuid,
+        points,
+        style,
+      } => ServerEvent::Draw {
+        uuid,
+        points,
+        style,
+        user: user.to_string(),
+      },
+      ClientEvent::Preview {
+        uuid,
+        points,
+        style,
+      } => ServerEvent::Preview {
+        uuid,
+        points,
+        style,
+        user: user.to_string(),
+      },
+      ClientEvent::Hover { uuid, point } => ServerEvent::Hover {
+        uuid,
+        point,
+        user: user.to_string(),
+      },
+      ClientEvent::Erase { uuid } => ServerEvent::Erase {
+        uuid,
+        user: user.to_string(),
+      },
+      ClientEvent::Fill { uuid, point, color } => ServerEvent::Fill {
+        uuid,
+        point,
+        color,
+        user: user.to_string(),
+      },
     }
   }
 }
