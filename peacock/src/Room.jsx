@@ -12,7 +12,7 @@ import ColorPicker from './ColorPicker';
 import WidthPicker from './WidthPicker';
 import EventLog from './EventLog';
 import { GrEdit, GrPaint } from 'react-icons/gr';
-import { BsCircle, BsCircleFill, BsSquare, BsSquareFill } from 'react-icons/bs';
+import { BsCircle, BsCircleFill, BsSlashLg, BsSquare, BsSquareFill } from 'react-icons/bs';
 import { BlobFishContext } from './BlobFish';
 import Painter from './Painter';
 
@@ -219,7 +219,10 @@ const Room = () => {
               <GridItem>
                 <IconButton icon={<Icon as={GrPaint} />} onClick={() => setDrawMode('fill')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'fill' } />
               </GridItem>
-              <GridItem/>
+              <GridItem>
+                <IconButton icon={<Icon as={BsSlashLg} color="black" />} onClick={() => setDrawMode('line')} colorScheme="cyan" variant="outline"  isActive={ drawMode === 'line' } />
+
+              </GridItem>
               <GridItem/>
               <GridItem/>
               <GridItem>

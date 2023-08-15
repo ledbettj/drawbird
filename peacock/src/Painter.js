@@ -56,8 +56,15 @@ class Painter {
     ctx.lineWidth = op.style.lineWidth;
     ctx.fillStyle = op.style.color;
     ctx.strokeStyle = op.style.color;
+    ctx.lineCaps = 'round';
+    ctx.lineJoin = 'round';
 
     switch(op.kind) {
+    case 'line':
+      ctx.moveTo(op.points[0].x, op.points[0].y);
+      ctx.lineTo(op.points[1].x, op.points[1].y);
+      ctx.stroke();
+      break;
     case 'strokeRect':
       ctx.strokeRect(op.points[0].x, op.points[0].y, op.points[1].x - op.points[0].x, op.points[1].y - op.points[0].y);
       break;
