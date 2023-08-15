@@ -67,9 +67,7 @@ const Room = () => {
       case 'draw':
       case 'fill':
         painter.commit(m);
-        if (m.user !== userName) {
-          setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }) );
-        }
+        setPreviews((prevState, _) => ({ ...prevState, [m.user]: null }) );
         break;
       case 'hover':
         if (m.user !== userName) {
@@ -147,9 +145,6 @@ const Room = () => {
     if (currentPath.length) {
       broadcast({ event: 'draw', points: currentPath, style: currentStyle });
       setCurrentPath([]);
-
-      previews[userName] = null;
-      setPreviews(previews);
     }
     setIsDrawing(false);
   };

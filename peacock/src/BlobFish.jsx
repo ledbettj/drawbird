@@ -1,4 +1,5 @@
 import { useEffect, useState, createContext } from 'react';
+import { Spinner } from '@chakra-ui/react';
 
 export const BlobFishContext = createContext({
   loading: true,
@@ -26,7 +27,12 @@ export const BlobFishProvider = ({ children }) => {
 
   return (
     <BlobFishContext.Provider value={value}>
-      { value.loading ? '...' : children}
+      {
+        value.loading ?
+          (<Spinner/>)
+          :
+          children
+      }
     </BlobFishContext.Provider>
   );
 };

@@ -1,3 +1,4 @@
+use js_sys::Reflect;
 use std::collections::VecDeque;
 use std::panic;
 use wasm_bindgen::{prelude::*, Clamped};
@@ -30,6 +31,23 @@ impl Point {
   pub fn new(x: isize, y: isize) -> Self {
     Point { x, y }
   }
+
+  pub fn to_addr(&self, width: isize) -> usize {
+    ((self.y * width + self.x) * 4) as usize
+  }
+
+  pub fn from_js_value(value: &JsValue) -> Self {
+    Self {
+      x: Reflect::get(value, &JsValue::from_str("x"))
+        .unwrap()
+        .as_f64()
+        .unwrap() as isize,
+      y: Reflect::get(value, &JsValue::from_str("y"))
+        .unwrap()
+        .as_f64()
+        .unwrap() as isize,
+    }
+  }
 }
 
 impl RGBA {
@@ -40,6 +58,21 @@ impl RGBA {
       b: slice[index + 2],
       a: slice[index + 3],
     }
+  }
+
+  pub fn try_from_str(color: &str) -> Option<Self> {
+    if !color.starts_with("#") {
+      return None;
+    }
+
+    let value = u32::from_str_radix(&color[1..], 16).ok();
+
+    value.map(|v| Self {
+      r: (v >> 16) as u8,
+      g: (v >> 8) as u8,
+      b: (v >> 0) as u8,
+      a: 0xFF,
+    })
   }
 
   pub fn equals_at_slice(&self, slice: &[u8], index: usize) -> bool {
@@ -55,29 +88,64 @@ pub fn setup() {
   panic::set_hook(Box::new(console_error_panic_hook::hook));
 }
 
-fn color_rgb(color: &str) -> Option<RGBA> {
-  if !color.starts_with("#") {
-    return None;
+#[wasm_bindgen]
+pub fn stroke_line(
+  ctx: CanvasRenderingContext2d,
+  points: js_sys::Array,
+  color: &JsValue,
+  line_width: f64,
+  badge: &JsValue,
+) {
+  if points.length() == 0 {
+    return;
   }
 
-  let value = u32::from_str_radix(&color[1..], 16).ok();
+  ctx.save();
+  ctx.set_line_width(line_width);
+  ctx.set_line_cap("round");
+  ctx.set_line_join("round");
+  ctx.set_stroke_style(color);
+  ctx.set_fill_style(color);
 
-  value.map(|v| RGBA {
-    r: (v >> 16) as u8,
-    g: (v >> 8) as u8,
-    b: (v >> 0) as u8,
-    a: 0xFF,
-  })
-}
+  ctx.begin_path();
 
-fn point_to_addr(p: &Point, width: isize) -> usize {
-  ((p.y * width + p.x) * 4) as usize
+  let first = Point::from_js_value(&points.get(0));
+  let last = Point::from_js_value(&points.get(points.length() - 1));
+
+  ctx.move_to(first.x as f64, first.y as f64);
+
+  if points.length() <= 3 {
+    points.for_each(&mut |point, _index, _| {
+      let point = Point::from_js_value(&point);
+      ctx.line_to(point.x as f64, point.y as f64);
+    });
+  } else {
+    for i in 1..(points.length() - 2) {
+      let point = Point::from_js_value(&points.get(i));
+      let next = Point::from_js_value(&points.get(i + 1));
+      let xc = (point.x + next.x) as f64 / 2.0;
+      let yc = (point.y + next.y) as f64 / 2.0;
+      ctx.quadratic_curve_to(point.x as f64, point.y as f64, xc, yc);
+    }
+    let point = Point::from_js_value(&points.get(points.length() - 2));
+    ctx.quadratic_curve_to(point.x as f64, point.y as f64, last.x as f64, last.y as f64);
+  }
+
+  ctx.stroke();
+
+  if !badge.is_undefined() {
+    let b = badge.as_string().unwrap();
+    let _ = ctx.fill_text(&b, last.x as f64 + 10.0, last.y as f64 + 10.0);
+  };
+
+  ctx.close_path();
+  ctx.restore();
 }
 
 #[wasm_bindgen]
 pub fn flood_fill(ctx: CanvasRenderingContext2d, p: Point, color: &str) {
-  let rgb = color_rgb(color);
-  log(&format!("Filling at {:?}", p));
+  let rgb = RGBA::try_from_str(color);
+
   if rgb.is_none() {
     return;
   }
@@ -91,7 +159,7 @@ pub fn flood_fill(ctx: CanvasRenderingContext2d, p: Point, color: &str) {
     .get_image_data(0.0, 0.0, canvas.width().into(), canvas.height().into())
     .unwrap();
   let mut pixel_data = pixels.data();
-  let target_color = RGBA::from_slice(&pixel_data, point_to_addr(&p, width));
+  let target_color = RGBA::from_slice(&pixel_data, p.to_addr(width));
 
   if target_color == fill_color {
     return;
@@ -105,7 +173,7 @@ pub fn flood_fill(ctx: CanvasRenderingContext2d, p: Point, color: &str) {
 
   while let Some(next) = stack.pop_front() {
     let Point { x, y } = next;
-    let addr = point_to_addr(&next, width);
+    let addr = next.to_addr(width);
 
     if target_color.equals_at_slice(&pixel_data, addr) {
       pixel_data[addr] = fill_color.r;

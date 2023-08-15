@@ -27,12 +27,12 @@ document.body.addEventListener("touchmove", function (e) {
 
 root.render(
   <React.StrictMode>
-    <BlobFishProvider>
       <ChakraProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <BlobFishProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </BlobFishProvider>
       </ChakraProvider>
-    </BlobFishProvider>
   </React.StrictMode>
 );
