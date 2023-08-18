@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
   extract::{
@@ -13,7 +13,7 @@ use futures::stream::StreamExt;
 use futures::SinkExt;
 use tokio::sync::{
   mpsc::{unbounded_channel, UnboundedSender},
-  Mutex, RwLock,
+  Mutex
 };
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::{debug, error, info};
@@ -23,11 +23,12 @@ use crate::{
   room::RoomSet,
 };
 
+use redis::AsyncCommands;
+
 pub struct App;
 
 struct AppState {
   rooms: Mutex<RoomSet>,
-  history: RwLock<HashMap<String, Vec<ServerEvent>>>,
   hist_tx: UnboundedSender<(String, ServerEvent)>,
 }
 
@@ -39,7 +40,6 @@ impl App {
     let (hist_tx, mut hist_rx) = unbounded_channel::<(String, ServerEvent)>();
     let state = Arc::new(AppState {
       rooms: Mutex::new(RoomSet::new()),
-      history: RwLock::new(HashMap::new()),
       hist_tx,
     });
 
@@ -53,16 +53,22 @@ impl App {
 
     info!("Server starting on {:?}", addr);
 
+    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL missing!");
+    let client = redis::Client::open(redis_url).expect("Failed to connect to redis!");
+
     tokio::spawn(async move {
       while let Some((room, event)) = hist_rx.recv().await {
-        let mut hist = state.history.write().await;
+        let mut con = client
+          .get_async_connection()
+          .await
+          .expect("Failed to get connection");
         debug!("received history {:?}, {:?}", room, event);
 
-        let entry = hist.entry(room).or_insert_with(|| vec![]);
         if let ServerEvent::Erase { .. } = event {
-          entry.clear();
+          let _: () = con.del(&room).await.unwrap();
         } else {
-          entry.push(event);
+          let _: () = con.rpush(&room, &event).await.unwrap();
+          let _: () = con.expire(&room, 60 * 60 * 24 * 7).await.unwrap();
         }
       }
     });
@@ -127,13 +133,18 @@ impl App {
       info!("{:?} assigned name: '{}'", addr, _name);
 
       {
-        if let Some(history) = _s.history.read().await.get(&_room) {
-          for h in history {
-            let payload = rmp_serde::to_vec_named(&h).unwrap();
-            if sender.send(Message::Binary(payload)).await.is_err() {
-              info!("{:?} [{}] could not send, disconnecting", addr, _name);
-              return;
-            }
+        let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL missing!");
+        let client = redis::Client::open(redis_url).expect("Failed to connect to redis!");
+        let mut con = client
+          .get_async_connection()
+          .await
+          .expect("Failed to get redis connection");
+        let history: Vec<ServerEvent> = con.lrange(&_room, 0, -1).await.unwrap();
+        for h in history {
+          let payload = rmp_serde::to_vec_named(&h).unwrap();
+          if sender.send(Message::Binary(payload)).await.is_err() {
+            info!("{:?} [{}] could not send, disconnecting", addr, _name);
+            return;
           }
         }
         info!(

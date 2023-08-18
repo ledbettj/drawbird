@@ -4,7 +4,7 @@
 #
 
 app = "drawbird"
-primary_region = "atl"
+primary_region = "iad"
 
 [build]
 

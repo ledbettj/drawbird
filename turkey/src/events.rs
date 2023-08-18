@@ -1,3 +1,4 @@
+use redis::{FromRedisValue, ToRedisArgs};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -135,6 +136,32 @@ impl ServerEvent {
         color,
         user: user.to_string(),
       },
+    }
+  }
+}
+
+impl ToRedisArgs for ServerEvent {
+  fn write_redis_args<W>(&self, out: &mut W)
+  where
+    W: ?Sized + redis::RedisWrite,
+  {
+    let bytes = rmp_serde::to_vec_named(&self).unwrap();
+    out.write_arg(&bytes);
+  }
+}
+
+impl FromRedisValue for ServerEvent {
+  fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
+    if let redis::Value::Data(data) = v {
+      Ok(rmp_serde::from_slice(&data).unwrap())
+    } else {
+      Err(
+        (
+          redis::ErrorKind::TypeError,
+          "Invalid data type for ServerEvent",
+        )
+          .into(),
+      )
     }
   }
 }
